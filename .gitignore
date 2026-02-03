@@ -3,4 +3,5 @@ data/raw/
 data/cleaned/*.csv
 
 # Credentials
-.kaggle/kaggle.json
+.kaggle/
+kaggle.json
