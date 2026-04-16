@@ -20,7 +20,7 @@ from sklearn.metrics import accuracy_score
 # In[118]:
 
 
-df = pd.read_excel("/Users/ananyatalukdar/Documents/dataScience_self/spotify user analysis/data/raw/Spotify_data.xlsx")
+df = pd.read_excel("data/raw/Spotify_data.xlsx")
 df.head()
 
 
