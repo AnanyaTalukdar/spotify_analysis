@@ -1,5 +1,4 @@
 # Data files
-data/raw/
 data/cleaned/*.csv
 
 # Credentials
