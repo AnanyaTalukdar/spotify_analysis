@@ -233,7 +233,7 @@ if df_numeric['Age'].dtype == 'object':
 df_numeric['premium_sub_willingness'] = df_numeric['premium_sub_willingness'].map({"Yes": 1, "No": 0})
 
 categorical_cols = df_numeric.select_dtypes(include=['object']).columns
-categorical_cols = categorical_cols.drop('premium_sub_willingness')
+
 
 df_numeric = pd.get_dummies(df_numeric, columns=categorical_cols, drop_first=True)
 
