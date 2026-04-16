@@ -230,6 +230,7 @@ if df_numeric['Age'].dtype == 'object':
     
     df_numeric['Age'] = df_numeric['Age'].apply(convert_age)
 
+df_numeric['premium_sub_willingness'] = df_numeric['premium_sub_willingness'].map({"Yes": 1, "No": 0})
 
 categorical_cols = df_numeric.select_dtypes(include=['object']).columns
 categorical_cols = categorical_cols.drop('premium_sub_willingness')
