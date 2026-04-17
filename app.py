@@ -216,67 +216,8 @@ st.markdown(
     'Always interpret percentages alongside the number of users in each group.</div>',
     unsafe_allow_html=True
 )
-
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 2 — Correlation heatmap (before model)
-# ══════════════════════════════════════════════════════════════════════════════
-st.markdown(
-    '<div class="section-title">Feature correlation with premium willingness — before modelling</div>',
-    unsafe_allow_html=True
-)
-st.caption(
-    "Measures each feature's direct relationship with willingness, in isolation. "
-    "+1 = moves together, -1 = moves opposite, 0 = no relationship."
-)
-
-target_corr = (
-    corr_matrix[["premium_sub_willingness"]]
-    .drop("premium_sub_willingness", errors="ignore")
-    .sort_values("premium_sub_willingness", ascending=False)
-    .head(20)
-)
-target_corr.index = [i.split("_", 1)[-1] for i in target_corr.index]
-
-fig, ax = plt.subplots(figsize=(5, 7))
-fig.patch.set_facecolor("#0e0e0e")
-ax.set_facecolor("#0e0e0e")
-sns.heatmap(target_corr, annot=True, fmt=".2f", cmap="coolwarm",
-            center=0, ax=ax, linewidths=0.3)
-ax.tick_params(colors="white")
-st.pyplot(fig)
-plt.close()
-
-# ══════════════════════════════════════════════════════════════════════════════
-# SECTION 3 — Feature importance (after model)
-# ══════════════════════════════════════════════════════════════════════════════
-st.markdown(
-    '<div class="section-title">Feature importance — what the model learned</div>',
-    unsafe_allow_html=True
-)
-st.caption(
-    "Coefficient = each feature's contribution to the prediction with all other features present. "
-    "Green = pushes toward upgrading. Red = pushes away."
-)
-
-top_n   = st.slider("Show top / bottom N features", 5, 20, 10)
-plot_df = pd.concat([coef_df.head(top_n), coef_df.tail(top_n)]).drop_duplicates()
-plot_df = plot_df.sort_values("Coefficient")
-
-fig, ax = plt.subplots(figsize=(10, max(4, len(plot_df) * 0.35)))
-fig.patch.set_facecolor("#0e0e0e")
-ax.set_facecolor("#0e0e0e")
-colors = ["#1DB954" if v > 0 else "#e05c5c" for v in plot_df["Coefficient"]]
-ax.barh(plot_df["Label"], plot_df["Coefficient"], color=colors)
-ax.axvline(0, color="#555", linewidth=0.8)
-ax.tick_params(colors="white")
-ax.xaxis.label.set_color("white")
-for spine in ax.spines.values():
-    spine.set_edgecolor("#333")
-st.pyplot(fig)
-plt.close()
-
-# ══════════════════════════════════════════════════════════════════════════════
-# SECTION 4 — Who is willing to upgrade (stacked bars, Yes/No only)
+# SECTION 2 — Who is willing to upgrade (stacked bars, Yes/No only)
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(
     '<div class="section-title">Who is willing to upgrade? — breakdown by feature</div>',
@@ -355,7 +296,7 @@ for tab, col in zip(tabs, breakdown_cols):
         willingness_bar(df, col)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 5 — Drill down
+# SECTION 3 — Drill down
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(
     '<div class="section-title">Drill down — within a specific group, who upgrades?</div>',
@@ -406,6 +347,65 @@ if drill_total < 30:
     )
 
 willingness_bar(drill_df, secondary_col)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 4 — Correlation heatmap (before model)
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown(
+    '<div class="section-title">Feature correlation with premium willingness — before modelling</div>',
+    unsafe_allow_html=True
+)
+st.caption(
+    "Measures each feature's direct relationship with willingness, in isolation. "
+    "+1 = moves together, -1 = moves opposite, 0 = no relationship."
+)
+
+target_corr = (
+    corr_matrix[["premium_sub_willingness"]]
+    .drop("premium_sub_willingness", errors="ignore")
+    .sort_values("premium_sub_willingness", ascending=False)
+    .head(20)
+)
+target_corr.index = [i.split("_", 1)[-1] for i in target_corr.index]
+
+fig, ax = plt.subplots(figsize=(5, 7))
+fig.patch.set_facecolor("#0e0e0e")
+ax.set_facecolor("#0e0e0e")
+sns.heatmap(target_corr, annot=True, fmt=".2f", cmap="coolwarm",
+            center=0, ax=ax, linewidths=0.3)
+ax.tick_params(colors="white")
+st.pyplot(fig)
+plt.close()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 5 — Feature importance (after model)
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown(
+    '<div class="section-title">Feature importance — what the model learned</div>',
+    unsafe_allow_html=True
+)
+st.caption(
+    "Coefficient = each feature's contribution to the prediction with all other features present. "
+    "Green = pushes toward upgrading. Red = pushes away."
+)
+
+top_n   = st.slider("Show top / bottom N features", 5, 20, 10)
+plot_df = pd.concat([coef_df.head(top_n), coef_df.tail(top_n)]).drop_duplicates()
+plot_df = plot_df.sort_values("Coefficient")
+
+fig, ax = plt.subplots(figsize=(10, max(4, len(plot_df) * 0.35)))
+fig.patch.set_facecolor("#0e0e0e")
+ax.set_facecolor("#0e0e0e")
+colors = ["#1DB954" if v > 0 else "#e05c5c" for v in plot_df["Coefficient"]]
+ax.barh(plot_df["Label"], plot_df["Coefficient"], color=colors)
+ax.axvline(0, color="#555", linewidth=0.8)
+ax.tick_params(colors="white")
+ax.xaxis.label.set_color("white")
+for spine in ax.spines.values():
+    spine.set_edgecolor("#333")
+st.pyplot(fig)
+plt.close()
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION 6 — Confusion matrix
