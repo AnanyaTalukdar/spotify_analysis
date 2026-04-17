@@ -3,7 +3,7 @@
 
 # #### Imports: pandas, numpy
 
-# In[117]:
+# In[2]:
 
 
 import pandas as pd
@@ -17,14 +17,14 @@ from sklearn.metrics import accuracy_score
 
 # ##### Reading the data from an excel file and getting the first five rows as a measure of check
 
-# In[118]:
+# In[3]:
 
 
-df = pd.read_excel("data/raw/Spotify_data.xlsx")
+df = pd.read_excel("/Users/ananyatalukdar/Documents/dataScience_self/spotify user analysis/data/raw/Spotify_data.xlsx")
 df.head()
 
 
-# In[119]:
+# In[4]:
 
 
 df.info()
@@ -34,11 +34,18 @@ df.isnull().sum()
 
 # #### understanding the type of responses
 
-# In[120]:
+# In[5]:
 
 
 for c in df.columns:
     print(str(df[c].value_counts(dropna=False))+"\n")
+
+
+# In[8]:
+
+
+df.duplicated().sum()
+df=df.drop_duplicates()
 
 
 # ##### to understand if a user might be willing to switch to premium : switch to premium? yes/no -> premium preference/skip. 
@@ -158,7 +165,6 @@ features = [
 target = "premium_sub_willingness"
 model_df = df[features + [target]].copy()
 
-
 # x has input features for the model, y has what we want the model to predict   
 X = model_df[features]
 y = model_df[target]
@@ -211,74 +217,4 @@ coef_df = pd.DataFrame({
 }).sort_values(by="Coefficient", ascending=False)
 
 coef_df
-
-
-# In[135]:
-
-
-df_numeric = df.copy()
-
-if df_numeric['Age'].dtype == 'object':
-    def convert_age(x):
-        if '-' in str(x):
-            low, high = x.split('-')
-            return (int(low) + int(high)) / 2
-        elif '+' in str(x):  # handles "46+" type cases
-            return int(x.replace('+',''))
-        else:
-            return pd.to_numeric(x, errors='coerce')
-    
-    df_numeric['Age'] = df_numeric['Age'].apply(convert_age)
-
-df_numeric['premium_sub_willingness'] = df_numeric['premium_sub_willingness'].map({"Yes": 1, "No": 0})
-
-categorical_cols = df_numeric.select_dtypes(include=['object']).columns
-
-
-df_numeric = pd.get_dummies(df_numeric, columns=categorical_cols, drop_first=True)
-
-print("All columns numeric now:")
-print(df_numeric.dtypes.head())
-
-
-# In[136]:
-
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-plt.figure(figsize=(14,10))
-
-corr_matrix = df_numeric.corr()
-
-sns.heatmap(
-    corr_matrix,
-    cmap="coolwarm",
-    center=0,
-    square=False
-)
-
-plt.title("Correlation Heatmap (All Numeric Features)")
-plt.show()
-
-
-# In[137]:
-
-
-target_corr = corr_matrix[['premium_sub_willingness']].sort_values(
-    by='premium_sub_willingness',
-    ascending=False
-)
-
-plt.figure(figsize=(6,12))
-
-sns.heatmap(
-    target_corr,
-    annot=True,
-    cmap="coolwarm",
-    center=0
-)
-
-plt.title("Feature Correlation with Premium Willingness")
-plt.show()
 
