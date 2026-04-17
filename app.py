@@ -36,16 +36,15 @@ st.markdown("""
         border-bottom: 1px solid #333;
         padding-bottom: 6px;
     }
-    .insight-box {
-        background: #0f2a1a;
-        border-left: 3px solid #1DB954;
+    .note-box {
+        background: #1c1c1c;
+        border-left: 3px solid #aaa;
         border-radius: 6px;
-        padding: 0.75rem 1rem;
-        margin: 0.4rem 0;
-        color: #ccc;
-        font-size: 14px;
+        padding: 0.6rem 1rem;
+        margin: 0.5rem 0 1rem;
+        color: #aaa;
+        font-size: 13px;
     }
-    .insight-box strong { color: #1DB954; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -99,44 +98,6 @@ def build_corr(df):
     df2 = pd.get_dummies(df2, columns=cat_cols, drop_first=True)
     return df2.corr()
 
-def generate_insights(fdf):
-    target = "premium_sub_willingness"
-    insights = []
-    if len(fdf) == 0:
-        return ["No data available for the current filters."]
-    overall_pct = (fdf[target] == "Yes").mean() * 100
-
-    checks = [
-        ("Age",                        "aged"),
-        ("Gender",                     "identifying as"),
-        ("preferred_listening_content","who prefer"),
-        ("spotify_listening_device",   "listening on"),
-        ("spotify_usage_period",       "who have used Spotify for"),
-        ("music_time_slot",            "who listen during"),
-        ("music_lis_frequency",        "who listen"),
-    ]
-
-    for col, phrase in checks:
-        if col not in fdf.columns:
-            continue
-        rates = (
-            fdf.groupby(col)[target]
-            .apply(lambda x: (x == "Yes").mean() * 100)
-            .sort_values(ascending=False)
-        )
-        if len(rates) == 0:
-            continue
-        top_val  = rates.index[0]
-        top_pct  = rates.iloc[0]
-        diff     = top_pct - overall_pct
-        direction = f"+{diff:.0f}pp above" if diff >= 0 else f"{diff:.0f}pp below"
-        insights.append(
-            f"Users <strong>{phrase} {top_val}</strong> are most likely to upgrade "
-            f"(<strong>{top_pct:.0f}%</strong> — {direction} the {overall_pct:.0f}% overall rate)."
-        )
-
-    return insights
-
 # ── Load everything ───────────────────────────────────────────────────────────
 df = load_data()
 model, X_test, y_test, y_pred, coef_df, accuracy = run_model(df)
@@ -147,7 +108,7 @@ st.title("🎧 Spotify Premium — What drives users to upgrade?")
 st.caption("Logistic regression analysis on Spotify user survey data")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# KPI CARDS — always at top, computed on full dataset, always visible
+# KPI CARDS
 # ══════════════════════════════════════════════════════════════════════════════
 total_all   = len(df)
 willing_all = (df["premium_sub_willingness"] == "Yes").sum()
@@ -171,15 +132,64 @@ for col, label, value, sub in [
 st.markdown("")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 1 — Correlation heatmap (raw data, before model)
+# SECTION 1 — Dataset demographics (pie charts)
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(
-    '<div class="section-title">Correlation with premium willingness — before modelling</div>',
+    '<div class="section-title">Dataset demographics — who is in this dataset?</div>',
+    unsafe_allow_html=True
+)
+st.caption("Distribution of users across key demographic features. Understand the dataset composition before reading any percentages.")
+
+demo_options = {
+    "Gender":         "Gender",
+    "Age group":      "Age",
+    "Usage period":   "spotify_usage_period",
+    "Content preference": "preferred_listening_content",
+    "Time slot":      "music_time_slot",
+}
+
+selected_demo = st.selectbox("Select feature to view", list(demo_options.keys()), key="demo_select")
+demo_col = demo_options[selected_demo]
+
+counts = df[demo_col].value_counts(dropna=True)
+colors_pie = ["#1DB954", "#e05c5c", "#4a90d9", "#f5a623", "#9b59b6", "#1abc9c", "#e67e22"]
+
+fig, ax = plt.subplots(figsize=(6, 4))
+fig.patch.set_facecolor("#0e0e0e")
+ax.set_facecolor("#0e0e0e")
+wedges, texts, autotexts = ax.pie(
+    counts.values,
+    labels=counts.index.astype(str),
+    autopct=lambda p: f"{p:.0f}%\n({int(round(p * counts.sum() / 100))})",
+    colors=colors_pie[:len(counts)],
+    startangle=90,
+    textprops={"color": "white", "fontsize": 10}
+)
+for at in autotexts:
+    at.set_color("white")
+    at.set_fontsize(9)
+ax.set_title(f"Distribution by {selected_demo}", color="white", fontsize=13)
+st.pyplot(fig)
+plt.close()
+
+st.markdown(
+    '<div class="note-box">⚠ Groups with very few users can show extreme percentages '
+    '(e.g. 100% or 0%) that are not statistically reliable. Always check the count '
+    'alongside the percentage — a 53% rate from 15 people is far less meaningful than '
+    'a 35% rate from 391 people.</div>',
+    unsafe_allow_html=True
+)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 2 — Correlation heatmap (before model)
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown(
+    '<div class="section-title">Feature correlation with premium willingness — before modelling</div>',
     unsafe_allow_html=True
 )
 st.caption(
     "Measures each feature's direct relationship with willingness, in isolation. "
-    "+1 = perfectly together, -1 = perfectly opposite, 0 = no relationship."
+    "+1 = moves together, -1 = moves opposite, 0 = no relationship."
 )
 
 target_corr = (
@@ -200,7 +210,7 @@ st.pyplot(fig)
 plt.close()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 2 — Feature importance / coefficients (after model)
+# SECTION 3 — Feature importance (after model)
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(
     '<div class="section-title">Feature importance — what the model learned</div>',
@@ -229,13 +239,17 @@ st.pyplot(fig)
 plt.close()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 3 — Who is willing to upgrade (filtered breakdown)
+# SECTION 4 — Who is willing to upgrade (stacked bars, Yes/No only)
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(
-    '<div class="section-title">Who is willing to upgrade?</div>',
+    '<div class="section-title">Who is willing to upgrade? — breakdown by feature</div>',
     unsafe_allow_html=True
 )
-st.caption("% of users within each group who said Yes. Sidebar filters apply.")
+st.caption(
+    "Each bar shows the Yes/No split within that group as a percentage. "
+    "Sorted by highest willingness. Check the demographics section above for group sizes — "
+    "small groups can show misleading percentages."
+)
 
 tabs = st.tabs(["By age", "By gender", "By usage period", "By device", "By content", "By time slot"])
 breakdown_cols = [
@@ -244,10 +258,9 @@ breakdown_cols = [
 ]
 
 def willingness_bar(data, col):
-    # include NaN as "No response"
     ct = pd.crosstab(
         data[col],
-        data["premium_sub_willingness"].fillna("No response"),
+        data["premium_sub_willingness"],
         normalize="index"
     ) * 100
 
@@ -255,24 +268,31 @@ def willingness_bar(data, col):
         st.info("No data for this selection.")
         return
 
-    for c in ["Yes", "No", "No response"]:
+    for c in ["Yes", "No"]:
         if c not in ct.columns:
             ct[c] = 0
 
-    ct = ct[["Yes", "No", "No response"]]
+    ct = ct[["Yes", "No"]]
     ct = ct.sort_values("Yes", ascending=True)
 
-    colors = {"Yes": "#1DB954", "No": "#e05c5c", "No response": "#555555"}
+    # show count of users in each group next to label
+    group_counts = data[col].value_counts()
+    ct.index = [
+        f"{str(idx)}  (n={group_counts.get(idx, 0)})"
+        for idx in ct.index
+    ]
 
-    fig, ax = plt.subplots(figsize=(8, max(3, len(ct) * 0.5)))
+    bar_colors = {"Yes": "#1DB954", "No": "#e05c5c"}
+
+    fig, ax = plt.subplots(figsize=(8, max(3, len(ct) * 0.55)))
     fig.patch.set_facecolor("#0e0e0e")
     ax.set_facecolor("#0e0e0e")
 
     lefts = np.zeros(len(ct))
-    for response in ["Yes", "No", "No response"]:
+    for response in ["Yes", "No"]:
         vals = ct[response].values
         bars = ax.barh(ct.index.astype(str), vals, left=lefts,
-                       color=colors[response], label=response)
+                       color=bar_colors[response], label=response)
         for bar, val, left in zip(bars, vals, lefts):
             if val >= 8:
                 ax.text(
@@ -293,13 +313,12 @@ def willingness_bar(data, col):
     st.pyplot(fig)
     plt.close()
 
-# Overview — always full dataset, all groups compared
 for tab, col in zip(tabs, breakdown_cols):
     with tab:
         willingness_bar(df, col)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 4 — Drill down
+# SECTION 5 — Drill down
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(
     '<div class="section-title">Drill down — within a specific group, who upgrades?</div>',
@@ -308,27 +327,23 @@ st.markdown(
 st.caption("Pick a group to zoom into, then pick a second feature to break it down by.")
 
 drill_options = {
-    "Gender":         "Gender",
-    "Age group":      "Age",
-    "Device":         "spotify_listening_device",
-    "Content":        "preferred_listening_content",
-    "Usage period":   "spotify_usage_period",
-    "Time slot":      "music_time_slot",
+    "Gender":             "Gender",
+    "Age group":          "Age",
+    "Content preference": "preferred_listening_content",
+    "Usage period":       "spotify_usage_period",
+    "Time slot":          "music_time_slot",
 }
 
 dcol1, dcol2, dcol3 = st.columns(3)
-
 with dcol1:
     primary_label = st.selectbox("Zoom into", list(drill_options.keys()), key="drill_primary")
     primary_col   = drill_options[primary_label]
-
 with dcol2:
     primary_val = st.selectbox(
         f"Select {primary_label.lower()}",
         sorted(df[primary_col].dropna().unique().tolist()),
         key="drill_val"
     )
-
 with dcol3:
     secondary_label = st.selectbox(
         "Break down by",
@@ -337,31 +352,26 @@ with dcol3:
     )
     secondary_col = drill_options[secondary_label]
 
-drill_df = df[df[primary_col] == primary_val]
+drill_df      = df[df[primary_col] == primary_val]
 drill_total   = len(drill_df)
 drill_willing = (drill_df["premium_sub_willingness"] == "Yes").sum()
 drill_pct     = round(drill_willing / drill_total * 100, 1) if drill_total > 0 else 0
 
 st.caption(
-    f"Showing **{drill_total:,}** users where {primary_label} = **{primary_val}** · "
-    f"**{drill_pct}%** overall willing to upgrade within this group"
+    f"**{drill_total:,}** users where {primary_label} = **{primary_val}** · "
+    f"**{drill_pct}%** willing to upgrade within this group"
 )
+
+if drill_total < 30:
+    st.warning(
+        f"⚠ Only {drill_total} users in this group. "
+        "Percentages may not be statistically reliable — interpret with caution."
+    )
+
 willingness_bar(drill_df, secondary_col)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 5 — Auto-generated insights (full dataset)
-# ══════════════════════════════════════════════════════════════════════════════
-st.markdown(
-    '<div class="section-title">Insights — what the data says</div>',
-    unsafe_allow_html=True
-)
-st.caption("Key takeaways from the full dataset.")
-
-for insight in generate_insights(df):
-    st.markdown(f'<div class="insight-box">{insight}</div>', unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# SECTION 5 — Confusion matrix
+# SECTION 6 — Confusion matrix
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(
     '<div class="section-title">Model performance — confusion matrix</div>',
