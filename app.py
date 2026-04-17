@@ -292,7 +292,8 @@ def willingness_bar(data, col):
 
 for tab, col in zip(tabs, breakdown_cols):
     with tab:
-        willingness_bar(df, col)
+        willingness_bar(filtered, col)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION 4 — Auto-generated insights
