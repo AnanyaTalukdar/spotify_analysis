@@ -244,19 +244,50 @@ breakdown_cols = [
 ]
 
 def willingness_bar(data, col):
-    ct = pd.crosstab(data[col], data["premium_sub_willingness"], normalize="index") * 100
-    if "Yes" not in ct.columns or len(ct) == 0:
+    # include NaN as "No response"
+    ct = pd.crosstab(
+        data[col],
+        data["premium_sub_willingness"].fillna("No response"),
+        normalize="index"
+    ) * 100
+
+    if len(ct) == 0:
         st.info("No data for this selection.")
         return
+
+    for c in ["Yes", "No", "No response"]:
+        if c not in ct.columns:
+            ct[c] = 0
+
+    ct = ct[["Yes", "No", "No response"]]
     ct = ct.sort_values("Yes", ascending=True)
-    fig, ax = plt.subplots(figsize=(8, max(3, len(ct) * 0.45)))
+
+    colors = {"Yes": "#1DB954", "No": "#e05c5c", "No response": "#555555"}
+
+    fig, ax = plt.subplots(figsize=(8, max(3, len(ct) * 0.5)))
     fig.patch.set_facecolor("#0e0e0e")
     ax.set_facecolor("#0e0e0e")
-    bars = ax.barh(ct.index.astype(str), ct["Yes"], color="#1DB954")
-    ax.bar_label(bars, fmt="%.0f%%", color="white", padding=4, fontsize=10)
-    ax.set_xlabel("% willing to upgrade", color="white")
-    ax.set_xlim(0, min(ct["Yes"].max() * 1.25, 100))
+
+    lefts = np.zeros(len(ct))
+    for response in ["Yes", "No", "No response"]:
+        vals = ct[response].values
+        bars = ax.barh(ct.index.astype(str), vals, left=lefts,
+                       color=colors[response], label=response)
+        for bar, val, left in zip(bars, vals, lefts):
+            if val >= 8:
+                ax.text(
+                    left + val / 2,
+                    bar.get_y() + bar.get_height() / 2,
+                    f"{val:.0f}%",
+                    ha="center", va="center",
+                    color="white", fontsize=9, fontweight="bold"
+                )
+        lefts += vals
+
+    ax.set_xlabel("% of group", color="white")
+    ax.set_xlim(0, 100)
     ax.tick_params(colors="white")
+    ax.legend(loc="lower right", framealpha=0.2, labelcolor="white", facecolor="#1a1a2e")
     for spine in ax.spines.values():
         spine.set_edgecolor("#333")
     st.pyplot(fig)
