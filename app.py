@@ -188,7 +188,7 @@ with right_col:
         at.set_fontsize(9)
 
     # Legend outside (clean + readable)
-    ax.legend(
+    legend = ax.legend(
         wedges,
         [f"{label} ({count})" for label, count in zip(counts.index, counts.values)],
         title=selected_demo,
@@ -199,6 +199,10 @@ with right_col:
         facecolor="#1a1a2e",
         framealpha=0.3
     )
+
+    legend.get_title().set_color("white")
+    legend.get_title().set_fontsize(10)
+    legend.get_title().set_fontweight("bold")
 
     ax.set_title(f"{selected_demo} distribution", color="white", fontsize=12)
 
