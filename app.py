@@ -171,34 +171,6 @@ for col, label, value, sub in [
 st.markdown("")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SIDEBAR FILTERS — affect breakdown + insights sections only
-# ══════════════════════════════════════════════════════════════════════════════
-st.sidebar.header("Filters")
-st.sidebar.caption("Applies to breakdown charts and insights below.")
-
-sel_gender  = st.sidebar.selectbox("Gender",
-    ["All"] + sorted(df["Gender"].dropna().unique().tolist()))
-sel_age     = st.sidebar.selectbox("Age group",
-    ["All"] + sorted(df["Age"].dropna().unique().tolist()))
-sel_device  = st.sidebar.selectbox("Listening device",
-    ["All"] + sorted(df["spotify_listening_device"].dropna().unique().tolist()))
-sel_content = st.sidebar.selectbox("Preferred content",
-    ["All"] + sorted(df["preferred_listening_content"].dropna().unique().tolist()))
-
-filtered = df.copy()
-if sel_gender  != "All": filtered = filtered[filtered["Gender"] == sel_gender]
-if sel_age     != "All": filtered = filtered[filtered["Age"] == sel_age]
-if sel_device  != "All": filtered = filtered[filtered["spotify_listening_device"] == sel_device]
-if sel_content != "All": filtered = filtered[filtered["preferred_listening_content"] == sel_content]
-
-f_total   = len(filtered)
-f_willing = (filtered["premium_sub_willingness"] == "Yes").sum()
-f_pct     = round(f_willing / f_total * 100, 1) if f_total > 0 else 0
-st.caption(
-    f"Filters active — **{f_total:,}** users · **{f_willing:,}** willing to upgrade (**{f_pct}%**)"
-)
-
-# ══════════════════════════════════════════════════════════════════════════════
 # SECTION 1 — Correlation heatmap (raw data, before model)
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(
@@ -290,21 +262,71 @@ def willingness_bar(data, col):
     st.pyplot(fig)
     plt.close()
 
+# Overview — always full dataset, all groups compared
 for tab, col in zip(tabs, breakdown_cols):
     with tab:
-        willingness_bar(filtered, col)
-
+        willingness_bar(df, col)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SECTION 4 — Auto-generated insights
+# SECTION 4 — Drill down
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown(
+    '<div class="section-title">Drill down — within a specific group, who upgrades?</div>',
+    unsafe_allow_html=True
+)
+st.caption("Pick a group to zoom into, then pick a second feature to break it down by.")
+
+drill_options = {
+    "Gender":         "Gender",
+    "Age group":      "Age",
+    "Device":         "spotify_listening_device",
+    "Content":        "preferred_listening_content",
+    "Usage period":   "spotify_usage_period",
+    "Time slot":      "music_time_slot",
+}
+
+dcol1, dcol2, dcol3 = st.columns(3)
+
+with dcol1:
+    primary_label = st.selectbox("Zoom into", list(drill_options.keys()), key="drill_primary")
+    primary_col   = drill_options[primary_label]
+
+with dcol2:
+    primary_val = st.selectbox(
+        f"Select {primary_label.lower()}",
+        sorted(df[primary_col].dropna().unique().tolist()),
+        key="drill_val"
+    )
+
+with dcol3:
+    secondary_label = st.selectbox(
+        "Break down by",
+        [k for k in drill_options.keys() if k != primary_label],
+        key="drill_secondary"
+    )
+    secondary_col = drill_options[secondary_label]
+
+drill_df = df[df[primary_col] == primary_val]
+drill_total   = len(drill_df)
+drill_willing = (drill_df["premium_sub_willingness"] == "Yes").sum()
+drill_pct     = round(drill_willing / drill_total * 100, 1) if drill_total > 0 else 0
+
+st.caption(
+    f"Showing **{drill_total:,}** users where {primary_label} = **{primary_val}** · "
+    f"**{drill_pct}%** overall willing to upgrade within this group"
+)
+willingness_bar(drill_df, secondary_col)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 5 — Auto-generated insights (full dataset)
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(
     '<div class="section-title">Insights — what the data says</div>',
     unsafe_allow_html=True
 )
-st.caption("Auto-generated from the filtered data. Adjust sidebar filters to see how insights change.")
+st.caption("Key takeaways from the full dataset.")
 
-for insight in generate_insights(filtered):
+for insight in generate_insights(df):
     st.markdown(f'<div class="insight-box">{insight}</div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
