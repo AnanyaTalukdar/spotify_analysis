@@ -134,49 +134,82 @@ st.markdown("")
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION 1 — Dataset demographics (pie charts)
 # ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 1 — Dataset demographics (final polished)
+# ══════════════════════════════════════════════════════════════════════════════
 st.markdown(
     '<div class="section-title">Dataset demographics — who is in this dataset?</div>',
     unsafe_allow_html=True
 )
-st.caption("Distribution of users across key demographic features. Understand the dataset composition before reading any percentages.")
+st.caption("Understand dataset composition before interpreting results.")
 
 demo_options = {
-    "Gender":         "Gender",
-    "Age group":      "Age",
-    "Usage period":   "spotify_usage_period",
+    "Gender": "Gender",
+    "Age group": "Age",
+    "Usage period": "spotify_usage_period",
     "Content preference": "preferred_listening_content",
-    "Time slot":      "music_time_slot",
+    "Time slot": "music_time_slot",
 }
 
-selected_demo = st.selectbox("Select feature to view", list(demo_options.keys()), key="demo_select")
+# Layout: left (controls) | right (chart)
+left_col, right_col = st.columns([1, 2])
+
+# ── LEFT: selection ───────────────────────────────────────────────────────────
+with left_col:
+    selected_demo = st.selectbox(
+        "Select feature",
+        list(demo_options.keys())
+    )
+
+# Prepare data
 demo_col = demo_options[selected_demo]
-
 counts = df[demo_col].value_counts(dropna=True)
-colors_pie = ["#1DB954", "#e05c5c", "#4a90d9", "#f5a623", "#9b59b6", "#1abc9c", "#e67e22"]
+counts = counts.sort_values(ascending=False)
+counts.index = counts.index.astype(str)
 
-fig, ax = plt.subplots(figsize=(6, 4))
-fig.patch.set_facecolor("#0e0e0e")
-ax.set_facecolor("#0e0e0e")
-wedges, texts, autotexts = ax.pie(
-    counts.values,
-    labels=counts.index.astype(str),
-    autopct=lambda p: f"{p:.0f}%\n({int(round(p * counts.sum() / 100))})",
-    colors=colors_pie[:len(counts)],
-    startangle=90,
-    textprops={"color": "white", "fontsize": 10}
-)
-for at in autotexts:
-    at.set_color("white")
-    at.set_fontsize(9)
-ax.set_title(f"Distribution by {selected_demo}", color="white", fontsize=13)
-st.pyplot(fig)
-plt.close()
+# ── RIGHT: chart ──────────────────────────────────────────────────────────────
+with right_col:
+    fig, ax = plt.subplots(figsize=(5, 4))
 
+    fig.patch.set_facecolor("#0e0e0e")
+    ax.set_facecolor("#0e0e0e")
+
+    wedges, _, autotexts = ax.pie(
+        counts.values,
+        labels=None,  # remove clutter inside
+        autopct=lambda p: f"{p:.0f}%" if p > 5 else "",  # hide tiny slices
+        startangle=90,
+        textprops={"color": "white", "fontsize": 9}
+    )
+
+    # Style percentages
+    for at in autotexts:
+        at.set_color("white")
+        at.set_fontsize(9)
+
+    # Legend outside (clean + readable)
+    ax.legend(
+        wedges,
+        [f"{label} ({count})" for label, count in zip(counts.index, counts.values)],
+        title=selected_demo,
+        loc="center left",
+        bbox_to_anchor=(1, 0.5),
+        fontsize=9,
+        labelcolor="white",
+        facecolor="#1a1a2e",
+        framealpha=0.3
+    )
+
+    ax.set_title(f"{selected_demo} distribution", color="white", fontsize=12)
+
+    plt.tight_layout()
+    st.pyplot(fig)
+    plt.close()
+
+# ── Note ──────────────────────────────────────────────────────────────────────
 st.markdown(
-    '<div class="note-box">⚠ Groups with very few users can show extreme percentages '
-    '(e.g. 100% or 0%) that are not statistically reliable. Always check the count '
-    'alongside the percentage — a 53% rate from 15 people is far less meaningful than '
-    'a 35% rate from 391 people.</div>',
+    '<div class="note-box">⚠ Groups with very small counts can show misleading percentages. '
+    'Always interpret percentages alongside the number of users in each group.</div>',
     unsafe_allow_html=True
 )
 
